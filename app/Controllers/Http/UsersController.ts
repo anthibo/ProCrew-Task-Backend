@@ -11,7 +11,7 @@ export default class UsersController {
       // to get a user by email
       if(request.qs().email){
         const {email} = request.qs()
-        console.log(email)
+        
         users = users.filter(user=>user.email===email)
         // console.log(users)
       }
