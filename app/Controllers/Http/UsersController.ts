@@ -5,9 +5,16 @@ import User from 'App/Models/User'
 import { DateTime } from 'luxon'
 
 export default class UsersController {
-  public async get ({ response}:HttpContextContract) {
+  public async get ({ request,response}:HttpContextContract) {
     try{
-      const users = await User.all()
+      let users = await User.all()
+      // to get a user by email
+      if(request.qs().email){
+        const {email} = request.qs()
+        console.log(email)
+        users = users.filter(user=>user.email===email)
+        // console.log(users)
+      }
       response.status(200).send({
         users,
       })
@@ -19,6 +26,16 @@ export default class UsersController {
       })
     }
   }
+
+  public async getUser({response,request}){
+   
+      const id = request.param('id') 
+      const user = await User.findOrFail(id)
+      response.status(200).send({
+        user,
+      })
+  }
+
 
   public async post ({request, response}:HttpContextContract) {
     try{
@@ -35,11 +52,15 @@ export default class UsersController {
           rules.required(),
           rules.confirmed('confirmPassword'),
         ]),
-        reset_question:schema.string.optional(),
-        reset_answer:schema.string.optional(),
+        reset_question:schema.string(),
+        reset_answer:schema.string(),
+        phone_number: schema.string({},[
+          rules.mobile()
+        ]),
+        address:schema.string()
       })
-      const newUser = await request.validate({schema:createUserScehma}) as Partial<User>
-      console.log(newUser)
+      let newUser = await request.validate({schema:createUserScehma}) as Partial<User>
+      newUser.email = newUser.email?.toLowerCase()
 
       const user = await User.create(newUser)
       response.status(200).send(
@@ -62,18 +83,24 @@ export default class UsersController {
       const id = request.param('id')
       const user = await User.findOrFail(id)
       const updateUserScehma = schema.create({
-        name:schema.string({},[
+        address:schema.string({},[
           rules.required(),
         ]),
         email:schema.string({},[
           rules.email(),
+          
         ]),
+        phone_number: schema.string({},[
+          rules.mobile()
+        ])
       })
       const userData = (await request.validate({schema:updateUserScehma}))
-      const {name,email} = userData
-      user.name = name
+      const {address,email,phone_number} = userData
       user.email = email
+      user.address = address
+      user.phone_number = phone_number
       user.updatedAt = DateTime.local()
+      
       await user.save()
       response.status(200).send(
         {
@@ -98,9 +125,11 @@ export default class UsersController {
       const id = request.param('id')
       const user = await User.findOrFail(id)
       await user.delete()
-      response.status(204).send(
+      const users = await User.all()
+      response.status(200).send(
         {
           message:'delete success',
+          users
         }
       )
     } catch (error) {

@@ -12,6 +12,8 @@ export default class Users extends BaseSchema {
       table.string('password').notNullable()
       table.string('reset_question').notNullable()
       table.string('reset_answer').notNullable()
+      table.string('address').notNullable()
+      table.string('phone_number').notNullable()
       table.string('remember_me_token').nullable()
     })
   }

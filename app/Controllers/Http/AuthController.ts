@@ -1,51 +1,80 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import { schema, rules } from '@ioc:Adonis/Core/Validator'
+
 
 import User from 'App/Models/User'
 
 export default class AuthController {
-  public async login ({ request,response,auth}:HttpContextContract) {
-    const {email,password} = request.all()
+  public async login ({ request ,auth,response}:HttpContextContract) {
+    let {email,password} = request.all()
+    email = email.toLowerCase()
     const token = await auth.attempt(email,password)
-    return token.toJSON()
+    const user = await User.findBy('email',email)
+    return response.status(200).json({
+      token:`Bearer ${token.token}`,
+      email,
+      name:user?.name
+    })
+  }
+  
+  public async loginWithGoogle({request,response,auth}:HttpContextContract){
+    try{
+      const {email} = request.all()
+      const user = await User.findBy('email',email)
+      if(!user){
+        throw new Error('This email is not registered in the system. Please register using this email first')
+      }
+      const {token} = await auth.login(user)
+      return response.status(200).json({
+        message:'success',
+        user:{
+          name:user.name,
+          email:user.email,
+          token:`Bearer ${token}`
+        },
+        
+      })
+    }
+    catch(err){
+      console.log(err)
+      response.status(400).json({
+        error:'unauthorized to login',
+        message:err.message
+      })
+    }
+    
   }
 
-
-
-  public async register ({ request,response,auth}:HttpContextContract) {
+  public async updatePassBySecurityQuestion({request,response}:HttpContextContract){
     try{
-        const createUserScehma = schema.create({
-            name:schema.string({},[
-                rules.required(),
-            ]),
-            email:schema.string({},[
-                rules.email(),
-                rules.unique({table:'users', column:'email'}),
-    
-            ]),
-            password:schema.string({},[
-                rules.required(),
-                rules.confirmed('confirmPassword'),
-            ]),
-            reset_question:schema.string.optional(),
-            reset_answer:schema.string.optional(),
-            })
-        const newUser = await request.validate({schema:createUserScehma}) as Partial<User>
-        console.log(newUser)
-  
-        const user = await User.create(newUser)
-        response.status(200).json(
-          {
-            message:'post success',
-            user,
-  
-          }
-        )
-      } catch(err){
-        response.badRequest({
-          message:`ERROR ${err.message} `,
-          error:{err},
-        })
+
+      const {email,reset_answer,newPassword,confirmNewPassword} = request.all()
+      const user = await User.findBy('email',email)
+      if(!user){
+        throw new Error('user not found')
       }
+      if(newPassword!==confirmNewPassword&&reset_answer!==user.reset_answer){
+        throw new Error('Wrong answer and passwords do not match')
+      }
+      if(reset_answer!==user.reset_answer){
+        throw new Error('Wrong answer')
+      }
+      if(newPassword!==confirmNewPassword){
+        throw new Error('Confirm Password missmatch')
+      }
+      
+      user.password = newPassword
+      user.save()
+      response.status(200).json({
+        message:'updated successfully'
+      })
+      
+    }
+    catch(err){
+      console.log(err)
+      response.status(400).json({
+        message:'error',
+        error:err.message
+      })
+    }
   }
 }

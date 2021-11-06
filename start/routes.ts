@@ -30,18 +30,25 @@ Route.group(()=>{
 
   Route.get('users', 'UsersController.get')
 
+  Route.get('users/:id', 'UsersController.getUser')
+
+ 
+
   Route.post('users', 'UsersController.post')
 
   Route.patch('users/:id','UsersController.patch')
 
   Route.delete('users/:id', 'UsersController.delete')
 
+
 })
-.middleware('auth')
+
 
 Route.post('login','AuthController.login')
+Route.post('login/google','AuthController.loginWithGoogle')
+Route.post('register','UsersController.post')
+Route.patch('/forgotPassword','AuthController.updatePassBySecurityQuestion')
 
-Route.post('register','AuthController.register')
 
 
 
